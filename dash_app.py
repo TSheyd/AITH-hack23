@@ -282,7 +282,7 @@ def demo(n_clicks):
         raise PreventUpdate
 
     # Table
-    table = pd.read_csv('./data/results.txt', sep='\t')  # Важно!!! columns == ids в data_table
+    table = pd.read_csv('./data/demo_results.txt', sep='\t')  # Важно!!! columns == ids в data_table
     table = table.to_dict('records')
 
     # Heatmap
