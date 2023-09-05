@@ -17,7 +17,18 @@ sys.path.append(os.getcwd())
 
 def RauLCF(data, cond_col):
     import PyRauLCF
+    '''
+    Function that applies Rau low counts filtering.
+    Requirements:
+    - PyRauLCF.py script and neccessary support files
 
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - cond_col: a name of the condition column
+
+    Returns:
+    - A dataframe with excluded genes with expression lower than threshold for every sample
+    '''
     matrix = data.drop(columns=[cond_col]).to_numpy(dtype='float32')
     vector = data[cond_col].apply(lambda x: str(x)).to_list()
 
@@ -37,14 +48,43 @@ def RauLCF(data, cond_col):
 
 
 def get_features_stability(data, clf, cond_col, rand_state):
+    '''
+    Function that runs model on the stratified random subsamples, retrieving the feature importances.
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - clf: a model
+    - cond_col: a name of the condition column
+    - rand_state: random state
+
+    Returns:
+    - A dataframe with genes importances
+    '''
     sample = resample(data, n_samples=int(data.shape[0] * 0.8), stratify=data[cond_col], random_state=rand_state)
+    
     clf = clf.fit(sample.drop(columns=[cond_col]), sample[cond_col].astype('int'))
+    
     feature_importance = pd.DataFrame(clf.feature_importances_, sample.iloc[:, :-1].columns)
     feature_importance.rename(columns={0: "Importance"}, inplace=True)
+    
     return (feature_importance)
 
 
 def run_xgb(data, cond_col, top_importance, n_obs):
+    '''
+    Function that optimizes the hyperparameters for XGB using Bayesian search, then running on a
+    subsamples and providing a feature importances.
+    Requirements:
+    - get_features_stability() function
+
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - cond_col: a name of the condition column
+    - top_importance: the number of most important genes to keep from each iteration
+    - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+
+    Returns:
+    - A dataframe with important genes
+    '''
     XGBclf = BayesSearchCV(
         xgb.XGBClassifier(objective="multi:softmax", num_class="2", random_state=500),
         {
@@ -94,6 +134,17 @@ def run_xgb(data, cond_col, top_importance, n_obs):
 
 
 def run_utest(data, cond_col):
+    '''
+    Function that runs multiple Mann-Whitney U tests for every pair of conditions.
+    FDR is controlled using Benjamini-Hochberg correction.
+
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - cond_col: a name of the condition column
+
+    Returns:
+    - A dataframe with genes, groups tested, pvals and padj
+    '''
     groups = np.unique(data[cond_col])
 
     results_df = []
@@ -123,6 +174,24 @@ def run_utest(data, cond_col):
 
 
 def MarkerFinder(data, cond_col, top_importance, n_obs, output):
+    '''
+    Function that runs all the functions above. The order:
+    1) Rau filter
+    2) XGBoost
+        2a) Hyperparameters tuning
+        2b) Retrieveing importances
+    3) Mann-Whitney
+
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - cond_col: a name of the condition column
+    - top_importance: the number of most important genes to keep from each iteration
+    - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+    - output: file name for the results output
+
+    Returns:
+    - Nothing
+    '''
     raw_data = pd.read_table(data, index_col=None)
 
     filtered_data = RauLCF(raw_data, cond_col)
@@ -138,6 +207,11 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output):
     return results
 
 
+'''
+------------------------------------------------------
+Test call
+------------------------------------------------------
+'''
 MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, "./data/results.txt")
 
 # %%
