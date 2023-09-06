@@ -53,7 +53,6 @@ button_demo = dbc.Button(
     id="demo-button",
     outline=True,
     color="primary",
-    # Turn off lowercase transformation for class .button in stylesheet
     style={"textTransform": "none"},
 )
 
@@ -172,7 +171,7 @@ upload_ = (
 data_table = dash_table.DataTable(
     id='data-table',
     columns=[
-        dict(id='Feature', name='Feature'),
+        dict(id='Gene', name='Gene'),
         dict(id='Groups', name='Group'),
         dict(id='pval', name='p-value', type='numeric', format=Format(precision=2, scheme=Scheme.exponent)),
         dict(id='padj', name='p-value (adj)', type='numeric', format=Format(precision=2, scheme=Scheme.exponent))
@@ -282,13 +281,38 @@ def demo(n_clicks):
         raise PreventUpdate
 
     # Table
-    table = pd.read_csv('./data/demo_results.txt', sep='\t')  # Важно!!! columns == ids в data_table
+    table = pd.read_csv('./data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
     table = table.to_dict('records')
 
     # Heatmap
-    heatmap_df = pd.DataFrame(np.random.rand(100, 100))  # heatmap пока на рандоме
+    hm = pd.read_csv('./data/demo_results_hm.txt', sep='\t')
+    hm = hm[hm.columns[::-1]]
+
+    # Y-axis legend
+    cond_one_pos = hm.loc[hm.condition == 1].shape[0]
+    # insert a row after cond_one_pos to make it visible
+    line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
+    hm = pd.concat([hm.iloc[:-cond_one_pos], line, hm.iloc[-cond_one_pos:]]).reset_index(drop=True)
+
+    # Y-axis text position
+    cond_zero_pos = hm.loc[hm.condition == 0].shape[0]
+    cond_one_pos = cond_zero_pos + cond_one_pos // 2  # middle of =1 condition part
+    cond_zero_pos = cond_zero_pos // 2  # middle of =0 condition part (0 comes first)
+    # border_pos = hm.condition.idxmax()
+
+    y_ticks = pd.Series(data="", index=hm.index, dtype=str)
+    y_ticks.loc[cond_one_pos] = "1"
+    y_ticks.loc[cond_zero_pos] = "0"
+
+    hm = hm.drop(columns='condition')
+
     fig = go.Figure()
-    fig.add_trace(go.Heatmap(z=heatmap_df)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
+    fig.add_trace(go.Heatmap(z=hm, x=hm.columns)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
+
+    fig.update_yaxes(tickmode='array',
+                     tickvals=np.arange(0, hm.shape[0]),
+                     ticktext=y_ticks)
+
     return table, fig
 
 
@@ -331,7 +355,9 @@ def start_calculations(contents, filename):
         if isinstance(df, str):
             return True
 
-    MarkerFinder(df, "condition", 50, 50, f"./data/{filename}results.txt")
+    MarkerFinder(df, "condition", 50, 50,
+                 output_stat="./data/{filename}_res_stat.txt",
+                 output_hm="./data/{filename}_res_hm.txt")
 
     # todo log start of calc and setup tg notifications
 
