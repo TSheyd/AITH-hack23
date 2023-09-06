@@ -1,0 +1,3 @@
+[tg]
+tg_token = ""  # telegram bot token
+admin_chat = ""  # logs chat
