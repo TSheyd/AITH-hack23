@@ -128,7 +128,7 @@ def run_xgb(data, cond_col, top_importance, n_obs, n_iter):
 
     stability_xgb['genes'] = stability_xgb.index
 
-    stable_genes = stability_xgb.loc[stability_xgb.isna().sum(axis=1) <= n_obs, 'genes']
+    stable_genes = stability_xgb.loc[stability_xgb.isna().sum(axis=1) <= n_obs*n_iter, 'genes']
 
     ml_filtered_data = data[stable_genes.values.tolist()]
     ml_filtered_data[cond_col] = data[cond_col]
@@ -222,6 +222,6 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, out
 Test call
 ------------------------------------------------------
 '''
-MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, 100, "./data/results_stat.txt", "./data/results_hm.txt")
+MarkerFinder("./data/dummy_expr.txt", "condition", 50, 0.5, 100, "./data/results_stat.txt", "./data/results_hm.txt")
 
 # %%
