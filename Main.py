@@ -63,13 +63,13 @@ def get_features_stability(data, clf, cond_col, rand_state):
     
     clf = clf.fit(sample.drop(columns=[cond_col]), sample[cond_col].astype('int'))
     
-    feature_importance = pd.DataFrame(clf.feature_importances_, sample.iloc[:, :-1].columns)
+    feature_importance = pd.DataFrame(clf.feature_importances_, sample.drop(columns=cond_col).columns)
     feature_importance.rename(columns={0: "Importance"}, inplace=True)
     
     return (feature_importance)
 
 
-def run_xgb(data, cond_col, top_importance, n_obs):
+def run_xgb(data, cond_col, top_importance, n_obs, n_iter):
     '''
     Function that optimizes the hyperparameters for XGB using Bayesian search, then running on a
     subsamples and providing a feature importances.
@@ -81,12 +81,15 @@ def run_xgb(data, cond_col, top_importance, n_obs):
     - cond_col: a name of the condition column
     - top_importance: the number of most important genes to keep from each iteration
     - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+    - n_iter: number of random subsamples
 
     Returns:
     - A dataframe with important genes
     '''
     XGBclf = BayesSearchCV(
-        xgb.XGBClassifier(objective="multi:softmax", num_class="2", random_state=500),
+        xgb.XGBClassifier(objective="multi:softmax", 
+                          num_class=str(len(np.unique(data[cond_col]))), 
+                          random_state=500),
         {
             'n_estimators': (5, 500),
             'max_depth': (2, 500),
@@ -111,11 +114,11 @@ def run_xgb(data, cond_col, top_importance, n_obs):
                                     booster=best_params_xgb['booster'],
                                     reg_alpha=best_params_xgb['reg_alpha'],
                                     objective="multi:softmax",
-                                    num_class="4",
+                                    num_class=str(len(np.unique(data[cond_col]))),
                                     random_state=500)
 
     # Obtaining feature importance for different data subsets
-    for i in range(100):
+    for i in range(n_iter):
         importance = get_features_stability(data, XGBclf_best, cond_col, i).abs().mean(axis=1).sort_values(
             ascending=False)
         if i == 0:
@@ -173,7 +176,7 @@ def run_utest(data, cond_col):
     return results_df.sort_values(by=['padj'])
 
 
-def MarkerFinder(data, cond_col, top_importance, n_obs, output_stat, output_hm):
+def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, output_hm):
     '''
     Function that runs all the functions above. The order:
     1) Rau filter
@@ -187,6 +190,7 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output_stat, output_hm):
     - cond_col: a name of the condition column
     - top_importance: the number of most important genes to keep from each iteration
     - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+    - n_iter: number of random subsamples
     - output_stat: file name for the results output
     - output_hm: file name for the heatmap dataset output
 
@@ -218,6 +222,6 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output_stat, output_hm):
 Test call
 ------------------------------------------------------
 '''
-MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, "./data/results_stat.txt", "./data/results_hm.txt")
+MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, 100, "./data/results_stat.txt", "./data/results_hm.txt")
 
 # %%
