@@ -14,9 +14,9 @@ import os
 
 sys.path.append(os.getcwd())
 
+import PyRauLCF
 
 def RauLCF(data, cond_col):
-    import PyRauLCF
     '''
     Function that applies Rau low counts filtering.
     Requirements:
@@ -173,7 +173,7 @@ def run_utest(data, cond_col):
     return results_df.sort_values(by=['padj'])
 
 
-def MarkerFinder(data, cond_col, top_importance, n_obs, output):
+def MarkerFinder(data, cond_col, top_importance, n_obs, output_stat, output_hm):
     '''
     Function that runs all the functions above. The order:
     1) Rau filter
@@ -187,10 +187,11 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output):
     - cond_col: a name of the condition column
     - top_importance: the number of most important genes to keep from each iteration
     - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
-    - output: file name for the results output
+    - output_stat: file name for the results output
+    - output_hm: file name for the heatmap dataset output
 
     Returns:
-    - Nothing
+    - A dataframe with genes, groups tested, pvals and padj
     '''
     raw_data = pd.read_table(data, index_col=None)
 
@@ -202,7 +203,12 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output):
 
     results = run_utest(ml_biomarkers, cond_col)
 
-    results.to_csv(output, sep="\t", index=False)
+    results.to_csv(output_stat, sep="\t", index=False)
+
+    heatmap_vars=results['Gene'].tolist()
+    heatmap_vars.append(cond_col)
+
+    raw_data[heatmap_vars].sort_values(by=cond_col).to_csv(output_hm, sep="\t", index=False)
 
     return results
 
@@ -212,6 +218,6 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, output):
 Test call
 ------------------------------------------------------
 '''
-MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, "./data/results.txt")
+MarkerFinder("./data/dummy_expr.txt", "condition", 50, 50, "./data/results_stat.txt", "./data/results_hm.txt")
 
 # %%
