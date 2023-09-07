@@ -27,6 +27,7 @@ def send_welcome(message):
     _token = str(message.text)
     if _token and _token != '/start':  # if '/start' command contains an auth code
         # received token
+        _token = _token.split()[-1]  # '/start tokenstr' -> tokenstr
         with sqlite3.connect("tg/jobs.db") as con:
             cur = con.cursor()
             cur.execute("SELECT filename FROM jobs WHERE job_token=?", (_token,))

@@ -1,6 +1,8 @@
 import base64
 import io
+import sqlite3
 import time
+from secrets import token_urlsafe
 from threading import Timer
 
 import webbrowser
@@ -14,8 +16,6 @@ from dash.dash_table.Format import Format, Scheme
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-
-from Main import MarkerFinder
 
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, "assets/segmentation-style.css"]
@@ -39,6 +39,52 @@ modal_overlay = dbc.Modal(
     size="lg",
 )
 
+submit_modal = dbc.Modal(
+    [
+        dbc.ModalHeader([html.H5("Load Data")]),
+        dbc.ModalBody([
+
+            dbc.InputGroup([dbc.InputGroupText('n_obs'),
+                            dbc.Input(placeholder='n_obs', type='number', id='n_obs', min=1)]),
+
+            html.Hr(),
+            dbc.Row(
+                dcc.Upload('Drag and Drop or click',
+                           style={
+                               'width': '100%',
+                               'height': '60px',
+                               'lineHeight': '60px',
+                               'borderWidth': '1px',
+                               'borderStyle': 'dashed',
+                               'borderRadius': '5px',
+                               'textAlign': 'center',
+                               'cursor': 'pointer'
+                           },
+                           multiple=False,  # Allow multiple files to be uploaded
+                           id='upload-file')
+            ),
+            dbc.Row(
+                # Hidden alert in case wrong file format gets loaded
+                dbc.Alert(
+                    "ERROR. Supported file formats: .tsv or .csv",
+                    id="alert-file-fmt",
+                    dismissable=True,
+                    fade=True,
+                    is_open=False,
+                    duration=5000,
+                    color="danger"
+                )
+            )
+        ]),
+
+        dbc.ModalFooter([
+            dbc.Button("Submit", color="primary", href="https://t.me/koshmarkersbot", id="tg-link-button", active=False),
+            dbc.Button("Close", color="secondary", id="submit-close", className="submit-bn")
+        ]),
+    ],
+    id="submit-modal",
+)
+
 button_howto = dbc.Button(
     "Info",
     id="howto-open",
@@ -49,11 +95,19 @@ button_howto = dbc.Button(
 )
 
 button_demo = dbc.Button(
-    "Demo",
+    "Load Demo",
     id="demo-button",
     outline=True,
     color="primary",
-    style={"textTransform": "none"},
+    style={"textTransform": "none", "white-space": "nowrap"},
+)
+
+button_submit = dbc.Button(
+    "Upload File",
+    id="submit-button",
+    outline=True,
+    color="primary",
+    style={"textTransform": "none", "font-weight": "bold", "white-space": "nowrap"},
 )
 
 # Header
@@ -83,8 +137,11 @@ header = dbc.Navbar(
                             dbc.Collapse(
                                 dbc.Nav(
                                     [
-                                        dbc.NavItem(button_demo, style={'padding': '1rem'}),
-                                        dbc.NavItem(button_howto, style={'padding': '1rem'}),
+                                        dbc.NavItem(button_submit, style={'padding': '1rem', "font-weight": "bold"}),
+                                        # todo add |
+                                        dbc.NavItem(button_demo, style={'padding': '1rem', "textTransform": "none"}),
+                                        dbc.NavItem(button_howto, style={'padding': '1rem', "textTransform": "none"}),
+                                        # Todo add result history
                                     ],
                                     navbar=True,
                                 ),
@@ -92,6 +149,7 @@ header = dbc.Navbar(
                                 navbar=True,
                             ),
                             modal_overlay,
+                            submit_modal,
                         ],
                         md=2,
                     ),
@@ -126,47 +184,6 @@ heatmap_info = html.Div(
     id="heatmap-info",
     className="pretty_container",
 )
-
-# Upload button
-upload_ = (
-    dbc.Card(
-        id="upload-card",
-        children=[
-            dbc.CardBody(
-                [
-                    html.Div([
-                        dcc.Upload('Drag and Drop or select a File',
-                                   style={
-                                       'width': '100%',
-                                       'height': '60px',
-                                       'lineHeight': '60px',
-                                       'borderWidth': '1px',
-                                       'borderStyle': 'dashed',
-                                       'borderRadius': '5px',
-                                       'textAlign': 'center',
-                                       'cursor': 'pointer'
-                                   },
-                                   multiple=False,  # Allow multiple files to be uploaded
-                                   id='upload-file'),
-                        html.Div(id='output-data-upload'),
-
-                        # Hidden alert in case wrong file format gets loaded
-                        dbc.Alert(
-                            "ERROR. Supported file formats: .tsv or .csv",
-                            id="alert-file-fmt",
-                            dismissable=True,
-                            fade=True,
-                            is_open=False,
-                            duration=5000,
-                            color="danger"
-                        ),
-                    ])
-                ]
-            ),
-        ],
-    ),
-)
-
 
 data_table = dash_table.DataTable(
     id='data-table',
@@ -231,18 +248,6 @@ heatmap_graph = html.Div(
         type="circle",
         children=[heatmap_graph])
     ])
-
-
-# Callback для окна "инфо"
-@app.callback(
-    Output("modal", "is_open"),
-    [Input("howto-open", "n_clicks"), Input("howto-close", "n_clicks")],
-    [State("modal", "is_open")],
-)
-def toggle_info(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
 
 
 def get_heatmap(hm) -> go.Figure:
@@ -331,28 +336,53 @@ def parse_contents(contents, filename):
     return df
 
 
-# Launch async calculations on file input
+def create_link_to_telegram():
+    """
+    Generate link for automatic Telegram bot auth (with start action) and token for assigning a job token.
+    :return: link, token
+    """
+
+    token = str(token_urlsafe(16))
+    token = f'{token}_{time.time_ns()}'
+    tg_link = f"https://telegram.me/koshmarkersbot?start={token}"
+    return tg_link, token
+
+
+# TODO Scedule calculations on file input
 @app.callback(
     Output("alert-file-fmt", "is_open"),
-    Input('upload-file', 'contents'),
+    Output('upload-file', 'disabled'),
+    Output('tg-link-button', 'disabled'),
+    Output('tg-link-button', 'href'),
+    Input('upload-file', 'contents'),  # todo trigger on final send button
     State('upload-file', 'filename'),
+    State('n_obs', 'value'),
     prevent_initial_call=True
 )
-def start_calculations(contents, filename):
+def load_file(contents, filename, n_obs):
     if not contents:
         raise PreventUpdate
     else:
         df = parse_contents(contents, filename)
         if isinstance(df, str):
-            return True
+            return True, False, True, "https://t.me/koshmarkersbot"  # Raise alert if failed to parse file
 
-    MarkerFinder(df, "condition", 50, 50,
-                 output_stat="./data/{filename}_res_stat.txt",
-                 output_hm="./data/{filename}_res_hm.txt")
+    # checks were passed in load_file
+    df = parse_contents(contents, filename)
 
-    # todo log start of calc and setup tg notifications
+    # Create link and token for a job, load into db for further auth in Telegram
+    tg_link, job_token = create_link_to_telegram()
 
-    return False
+    # Write file with token as name, filename is kept only for notifications
+    df.to_csv(f"./data/{job_token}.csv", sep='\t', index=False)
+
+    with sqlite3.connect("tg/jobs.db") as con:
+        cur = con.cursor()
+        cur.execute("INSERT INTO jobs (filename, job_token, n_obs) VALUES (?, ?, ?)", (filename, job_token, int(n_obs)))
+        con.commit()
+    con.close()
+
+    return False, True, False, f"https://t.me/koshmarkersbot?start={job_token}"  # Open a button with a link to tg
 
 
 # Parse URL with token to retrieve calculated data
@@ -385,12 +415,67 @@ def table_row_info(active_cell):
     return str(active_cell) if active_cell else "Click on a row to view additional info"
 
 
+# Table row info on data_table click
+@app.callback(
+    Output("heatmap_graph", "figure", allow_duplicate=True),
+    Input('data-table', "derived_virtual_data"),
+    Input('data-table', "derived_virtual_selected_rows"),
+    Input('update-heatmap', "n_clicks"),
+    State("hm_fn", "children"),
+    prevent_initial_call=True
+)
+def update_heatmap(rows, derived_virtual_selected_rows, hm_fn, n_clicks):
+    # When the table is first rendered, `derived_virtual_data` and
+    # `derived_virtual_selected_rows` will be `None`. This is due to an
+    # idiosyncrasy in Dash (unsupplied properties are always None and Dash
+    # calls the dependent callbacks when the component is first rendered).
+    # So, if `rows` is `None`, then the component was just rendered
+    # and its value will be the same as the component's dataframe.
+    # Instead of setting `None` in here, you could also set
+    # `derived_virtual_data=df.to_rows('dict')` when you initialize
+    # the component.
+
+    if not hm_fn or not n_clicks:  # file not loaded
+        raise PreventUpdate
+
+    # Load file
+    hm = pd.read_csv(hm_fn, sep='\t')
+
+    # Filter data
+
+    # Get figure
+    fig = get_heatmap(hm)
+
+    return fig
+
+
+# Callback for Info popup button
+@app.callback(
+    Output("modal", "is_open"),
+    [Input("howto-open", "n_clicks"), Input("howto-close", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_info(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+
+# Callback for Submit popup button
+@app.callback(
+    Output("submit-modal", "is_open"),
+    [Input("submit-button", "n_clicks"), Input("submit-close", "n_clicks")],
+    [State("submit-modal", "is_open")],
+)
+def toggle_submit(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+
 # Compile layout
 app.layout = html.Div(
     [
-        # represents the URL bar, doesn't render anything
-        dcc.Location(id='url', refresh=False),
-
         # content will be rendered in this element
         html.Div(id='content'),
 
@@ -400,7 +485,7 @@ app.layout = html.Div(
             [
                 dbc.Row(
                     id="header-content",
-                    children=[dbc.Col(upload_info, md=4), dbc.Col(upload_, md=2), dbc.Col(heatmap_info, md=6)],
+                    children=[dbc.Col(upload_info, md=6), dbc.Col(heatmap_info, md=6)],
                 ),
                 html.Br(),
                 dbc.Row(
@@ -416,6 +501,19 @@ app.layout = html.Div(
             fluid=True,
             style={"height": "100vh"}
         ),
+
+        # Invisible elements for client-side variable storage (yeah)
+
+        # represents the URL bar, doesn't render anything
+        dcc.Location(id='url', refresh=False),
+
+        # trigger for page_loaded bool - to distinguish between reset filters and page initial load
+        html.Div(id='page_loaded', children=0, style=dict(display='none')),
+
+        # filename variables - to update graphs from files
+        html.Div(id='stat_fn', children="", style=dict(display='none')),
+        html.Div(id='hm_fn', children="", style=dict(display='none')),
+
     ]
 )
 
