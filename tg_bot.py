@@ -34,6 +34,8 @@ def send_welcome(message):
             filename = cur.fetchone()
 
             if filename:
+                cur.execute("UPDATE jobs SET job_confirmed=1 WHERE job_token=?", (_token,))
+                con.commit()
                 bot.send_message(message.chat.id, f'{filename[0]} was added to job queue.\nYou will receive '
                                                   f'a notification when the calculations are finished.')
             else:
