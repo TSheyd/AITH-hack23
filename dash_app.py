@@ -201,18 +201,19 @@ data_table = dash_table.DataTable(
     sort_action="native",
     sort_mode="multi",
     column_selectable="single",
+    row_selectable='multi',  # todo checkboxes are not of same size
     selected_columns=[],
     selected_rows=[],
     page_action="native",
     page_current=0,
-    page_size=10,
+    page_size=12,
     style_cell={
         'overflow': 'hidden',
         'textOverflow': 'ellipsis',
         'minWidth': '100px', 'width': '120px', 'maxWidth': '120px',
         'padding': '5px',
     },
-    style_table={'overflowY': 'auto'},
+    style_table={'overflowY': 'auto', 'height': '100%'},
     style_header={
         'backgroundColor': 'white',
         'fontWeight': 'bold',
@@ -222,17 +223,32 @@ data_table = dash_table.DataTable(
     style_data={'fontsize': 6, 'font-family': 'sans-serif'},
 )
 
-# Wrap table in a loading animation,
+# Clear filters button
+clear_selected_rows_button = dbc.Button(
+    "clear selection",
+    id="deselect-button",
+    outline=True,
+    color="secondary",  # todo update with callback on selection --> primary
+)
+
+update_heatmap_button = dbc.Button(
+    "update graph",
+    id="update-heatmap",
+    outline=True,
+    color="secondary",  # todo update with callback on selection --> primary
+)
+
+# Table module
 data_table = [
     html.Div(
         id="table-loader-wrapper",
-        style={"height": "100%"},
-        children=[dcc.Loading(
-            id="table-loading",
-            parent_style={"height": "100%"},
-            type="circle",
-            children=[data_table])]
+        children=[
+            dcc.Loading(id="table-loading", type="circle", children=[data_table]),
+            html.Div(children=[clear_selected_rows_button, update_heatmap_button], id='clear-filters-space',
+                     style={"display": "flex", "justify-content": "space-between", 'padding': '5px'}),
+        ]
     ),
+    html.Br(),
     html.Div(dbc.Alert("", color="light", id='data-table-row-info'))
 ]
 
@@ -296,10 +312,11 @@ def get_heatmap(hm) -> go.Figure:
     Output('data-table', 'data', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
     Input('demo-button', 'n_clicks'),
+    Input('deselect-button', 'n_clicks'),
     prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
 )
-def demo(n_clicks):
-    if n_clicks is None:
+def demo(demo_clicks, deselect_clicks):
+    if demo_clicks is None and deselect_clicks is None:
         raise PreventUpdate
 
     # Table
@@ -350,7 +367,7 @@ def create_link_to_telegram():
     return tg_link, token
 
 
-# TODO Scedule calculations on file input
+# Submit files for calculations
 @app.callback(
     Output("alert-file-fmt", "is_open"),
     Output('upload-file', 'disabled'),
@@ -387,24 +404,45 @@ def load_file(contents, filename, n_obs):
     return False, True, False, f"https://t.me/koshmarkersbot?start={job_token}"  # Open a button with a link to tg
 
 
-# Parse URL with token to retrieve calculated data
+# Retrieve calculated data
 @app.callback(
     Output('data-table', 'data', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
+    Output("page_loaded", "children"),
+    Output("stat_fn", "children"),
+    Output("hm_fn", "children"),
     Input('url', 'href'),
+    Input('deselect-button', 'n_clicks'),
+    State("page_loaded", "children"),
     prevent_initial_call='initial_duplicate'
 )
-def _content(href: str):
+def load_data(href: str, n_clicks: int, page_loaded: bool):
+    if page_loaded and not n_clicks:
+        raise PreventUpdate
+
     # User authentication
     try:
         url = furl(href)
-        token = url.args["token"]
+        job_token = url.args["token"]
     except KeyError:  # no token provided
         raise PreventUpdate
 
-    # table_df = table_df.to_dict('records')
-    # fig = get_heatmap(hm)
-    return None
+    with sqlite3.connect("tg/jobs.db") as con:
+        cur = con.cursor()
+        cur.execute("SELECT filename FROM jobs WHERE job_token=?", (job_token,))
+        fn = cur.fetchone()[0]
+    con.close()
+
+    # Load files
+    stat_fn = f"{fn}_stat.txt"
+    stat_df = pd.read_csv(f"{path}data/{stat_fn}", sep='\t')
+    stat_df = stat_df.to_dict('records')
+
+    hm_fn = f"{fn}_hm.txt"
+    hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
+    fig = get_heatmap(hm)
+
+    return stat_df, fig, 1, stat_fn, hm_fn
 
 
 # Table row info on data_table click
