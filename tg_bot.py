@@ -1,6 +1,7 @@
 import telebot
 import toml
-import logging
+import os
+import re
 import sqlite3
 
 try:
@@ -9,12 +10,23 @@ try:
     admin_chat = config.get('admin_chat')
 except FileNotFoundError:
     import sys
+
     sys.exit(-1)
 
+path = f'{os.path.abspath(os.curdir)}/'
 
 bot = telebot.TeleBot(token=bot_token)
 # Telegram bots have a limit of 4096 symbols per message, but I don't think this should cause any problems here,
 # thus standard bot.send_message(chat_id, text, **kwargs) will do.
+
+
+def add_escape_chars(input_str) -> str:
+    """
+    Copied from telebot.formatiing.escape_markdown
+    """
+    parse = re.sub(r"([_*\[\]()~`>\#\+\-=|\.!\{\}])", r"\\\1", input_str)
+    reparse = re.sub(r"\\\\([_*\[\]()~`>\#\+\-=|\.!\{\}])", r"\1", parse)
+    return reparse
 
 
 @bot.message_handler(commands=['help'])
@@ -28,13 +40,13 @@ def send_welcome(message):
     if _token and _token != '/start':  # if '/start' command contains an auth code
         # received token
         _token = _token.split()[-1]  # '/start tokenstr' -> tokenstr
-        with sqlite3.connect("tg/jobs.db") as con:
+        with sqlite3.connect(f"{path}tg/jobs.db") as con:
             cur = con.cursor()
-            cur.execute("SELECT filename FROM jobs WHERE job_token=?", (_token,))
+            cur.execute("SELECT user_filename FROM jobs WHERE job_token=?", (_token,))
             filename = cur.fetchone()
 
             if filename:
-                cur.execute("UPDATE jobs SET job_confirmed=1 WHERE job_token=?", (_token,))
+                cur.execute("UPDATE jobs SET job_confirmed=1, user_id=? WHERE job_token=?", (message.chat.id, _token,))
                 con.commit()
                 bot.send_message(message.chat.id, f'{filename[0]} was added to job queue.\nYou will receive '
                                                   f'a notification when the calculations are finished.')
@@ -48,6 +60,25 @@ def send_welcome(message):
                                           f'and send your RNAseq data in .tsv or .csv.'
                                           f'\n\nYou can learn more about this tool by clicking [here](TODO) '
                                           f'or by using the /help command (TODO).')
+
+
+def send_notification(user_id):
+    with sqlite3.connect(f"{path}tg/jobs.db") as con:
+        cur = con.cursor()
+        # sending only one message at a time, may proof with ORDER BY id DESC LIMIT 1
+        cur.execute("SELECT user_filename, job_token FROM jobs WHERE user_id=? AND end_time IS NOT NULL", (user_id,))
+        filename, job_token = cur.fetchone()
+
+        bot.send_message(user_id,
+                         f'Calculations on {add_escape_chars(filename)} are complete\!'
+                         f'\nYou can now check the results by following the '
+                         f'[link](http://127.0.0.1:8070/?token={job_token})',
+                         parse_mode='MarkdownV2')
+
+        cur.execute("UPDATE jobs SET notification_sent=1 WHERE job_token=?", (job_token,))
+        con.commit()
+    con.close()
+    return 0
 
 
 def main(after_crash=False):
