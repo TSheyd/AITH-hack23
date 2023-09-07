@@ -289,21 +289,25 @@ def demo(n_clicks):
     hm = hm[hm.columns[::-1]]
 
     # Y-axis legend
-    cond_one_pos = hm.loc[hm.condition == 1].shape[0]
-    # insert a row after cond_one_pos to make it visible
-    line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
-    hm = pd.concat([hm.iloc[:-cond_one_pos], line, hm.iloc[-cond_one_pos:]]).reset_index(drop=True)
-
-    # Y-axis text position
-    cond_zero_pos = hm.loc[hm.condition == 0].shape[0]
-    cond_one_pos = cond_zero_pos + cond_one_pos // 2  # middle of =1 condition part
-    cond_zero_pos = cond_zero_pos // 2  # middle of =0 condition part (0 comes first)
-    # border_pos = hm.condition.idxmax()
-
     y_ticks = pd.Series(data="", index=hm.index, dtype=str)
-    y_ticks.loc[cond_one_pos] = "1"
-    y_ticks.loc[cond_zero_pos] = "0"
+    prev_stack_len = 0  # for correct tick positioning
+    for i in hm.condition.unique():
+        cond_len = hm.loc[hm.condition == i].shape[0]  # length of condition
+        cond_pos = prev_stack_len + cond_len // 2
 
+        # Y-axis text position
+        y_ticks.loc[cond_pos] = str(i)
+
+        if hm.loc[0, 'condition'] == i:  # No borderline for first group (edge of heatmap)
+            prev_stack_len += cond_len
+            continue
+
+        # insert a row after cond_one_pos to make it visible
+        line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
+        hm = pd.concat([hm.loc[:prev_stack_len - 1], line, hm.loc[prev_stack_len:]]).reset_index(drop=True)
+
+        prev_stack_len += cond_len + 1
+        y_ticks.loc[y_ticks.shape[0]] = ""  # add empty line to fit hm.shape
     hm = hm.drop(columns='condition')
 
     fig = go.Figure()
