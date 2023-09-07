@@ -233,30 +233,6 @@ heatmap_graph = html.Div(
     ])
 
 
-# Func to load diagram from table
-def get_heatmap(df):
-    df = pd.DataFrame(np.random.rand(100, 100))
-
-    fig = go.Figure(data=go.Heatmap(
-        z=df,
-        colorscale='Viridis'))
-
-    fig.update_layout(
-        autosize=False,
-        width=500,
-        height=500,
-        margin=dict(
-            l=50,
-            r=50,
-            b=100,
-            t=100,
-            pad=4
-        ),
-    )
-
-    return fig
-
-
 # Callback для окна "инфо"
 @app.callback(
     Output("modal", "is_open"),
@@ -269,24 +245,12 @@ def toggle_info(n1, n2, is_open):
     return is_open
 
 
-# Demo results
-@app.callback(
-    Output('data-table', 'data', allow_duplicate=True),
-    Output("heatmap_graph", "figure", allow_duplicate=True),
-    Input('demo-button', 'n_clicks'),
-    prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
-)
-def demo(n_clicks):
-    if n_clicks is None:
-        raise PreventUpdate
-
-    # Table
-    table = pd.read_csv('./data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
-    table = table.to_dict('records')
-
-    # Heatmap
-    hm = pd.read_csv('./data/demo_results_hm.txt', sep='\t')
-    hm = hm[hm.columns[::-1]]
+def get_heatmap(hm) -> go.Figure:
+    """
+    Create heatmap from passed DataFrame
+    :param pd.DataFrame hm:
+    :return:
+    """
 
     # Y-axis legend
     y_ticks = pd.Series(data="", index=hm.index, dtype=str)
@@ -311,11 +275,34 @@ def demo(n_clicks):
     hm = hm.drop(columns='condition')
 
     fig = go.Figure()
+    # fig.add_trace(go.Heatmap(z=np.log10(hm).fillna(0), x=hm.columns)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
     fig.add_trace(go.Heatmap(z=hm, x=hm.columns)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
 
     fig.update_yaxes(tickmode='array',
                      tickvals=np.arange(0, hm.shape[0]),
-                     ticktext=y_ticks)
+                     ticktext=y_ticks)  # todo hovertext
+    return fig
+
+
+# Demo results
+@app.callback(
+    Output('data-table', 'data', allow_duplicate=True),
+    Output("heatmap_graph", "figure", allow_duplicate=True),
+    Input('demo-button', 'n_clicks'),
+    prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
+)
+def demo(n_clicks):
+    if n_clicks is None:
+        raise PreventUpdate
+
+    # Table
+    table = pd.read_csv('./data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
+    table = table.to_dict('records')
+
+    # Heatmap
+    hm = pd.read_csv('./data/demo_results_hm.txt', sep='\t')
+    hm = hm[hm.columns[::-1]]
+    fig = get_heatmap(hm)
 
     return table, fig
 
@@ -383,10 +370,8 @@ def _content(href: str):
     except KeyError:  # no token provided
         raise PreventUpdate
 
-    # format loaded file
     # table_df = table_df.to_dict('records')
-    # fig = go.Figure()
-    # fig.add_trace(go.Heatmap(z=heatmap_df)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
+    # fig = get_heatmap(hm)
     return None
 
 
