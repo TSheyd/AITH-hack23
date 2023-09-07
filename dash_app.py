@@ -310,7 +310,10 @@ def get_heatmap(hm) -> go.Figure:
 # Demo results
 @app.callback(
     Output('data-table', 'data', allow_duplicate=True),
+    Output('data-table', 'selected_rows'),
     Output("heatmap_graph", "figure", allow_duplicate=True),
+    Output("stat_fn", "children", allow_duplicate=True),
+    Output("hm_fn", "children", allow_duplicate=True),
     Input('demo-button', 'n_clicks'),
     Input('deselect-button', 'n_clicks'),
     prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
@@ -320,15 +323,17 @@ def demo(demo_clicks, deselect_clicks):
         raise PreventUpdate
 
     # Table
-    table = pd.read_csv(f'{path}data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
+    stat_fn = "demo_results_stat.txt"
+    table = pd.read_csv(f'{path}data/{stat_fn}', sep='\t')  # Важно!!! columns == ids в data_table
     table = table.to_dict('records')
 
     # Heatmap
-    hm = pd.read_csv(f'{path}data/demo_results_hm.txt', sep='\t')
+    hm_fn = "demo_results_hm.txt"
+    hm = pd.read_csv(f'{path}data/{hm_fn}', sep='\t')
     hm = hm[hm.columns[::-1]]
     fig = get_heatmap(hm)
 
-    return table, fig
+    return table, list(), fig, stat_fn, hm_fn
 
 
 def parse_contents(contents, filename):
@@ -378,7 +383,7 @@ def create_link_to_telegram():
     State('n_obs', 'value'),
     prevent_initial_call=True
 )
-def load_file(contents, filename, n_obs):
+def submit_file(contents, filename, n_obs):
     if not contents:
         raise PreventUpdate
     else:
@@ -409,14 +414,14 @@ def load_file(contents, filename, n_obs):
     Output('data-table', 'data', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
     Output("page_loaded", "children"),
-    Output("stat_fn", "children"),
-    Output("hm_fn", "children"),
+    Output("stat_fn", "children", allow_duplicate=True),
+    Output("hm_fn", "children", allow_duplicate=True),
     Input('url', 'href'),
     Input('deselect-button', 'n_clicks'),
     State("page_loaded", "children"),
     prevent_initial_call='initial_duplicate'
 )
-def load_data(href: str, n_clicks: int, page_loaded: bool):
+def load_results(href: str, n_clicks: int, page_loaded: bool):
     if page_loaded and not n_clicks:
         raise PreventUpdate
 
@@ -464,7 +469,7 @@ def table_row_info(active_cell):
     State("hm_fn", "children"),
     prevent_initial_call=True
 )
-def update_heatmap(rows, derived_virtual_selected_rows, hm_fn, n_clicks):
+def update_heatmap(rows, indices, n_clicks, hm_fn):
     # When the table is first rendered, `derived_virtual_data` and
     # `derived_virtual_selected_rows` will be `None`. This is due to an
     # idiosyncrasy in Dash (unsupplied properties are always None and Dash
@@ -475,11 +480,19 @@ def update_heatmap(rows, derived_virtual_selected_rows, hm_fn, n_clicks):
     # `derived_virtual_data=df.to_rows('dict')` when you initialize
     # the component.
 
-    if not hm_fn or not n_clicks:  # file not loaded
+    if not hm_fn:  # file not loaded
         raise PreventUpdate
 
+    if "update-heatmap" != ctx.triggered_id:  # button not pressed
+        raise PreventUpdate
+
+    if indices:  # selected tick boxes
+        cols = [row['Gene'] for row in [rows[i] for i in indices]] + ['condition']
+    else:  # filtered values
+        cols = [row['Gene'] for row in rows] + ['condition']
+
     # Load file
-    hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
+    hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=cols)
 
     # Filter data
 
