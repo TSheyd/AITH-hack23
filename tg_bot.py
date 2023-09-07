@@ -27,12 +27,15 @@ def send_welcome(message):
     _token = str(message.text)
     if _token and _token != '/start':  # if '/start' command contains an auth code
         # received token
+        _token = _token.split()[-1]  # '/start tokenstr' -> tokenstr
         with sqlite3.connect("tg/jobs.db") as con:
             cur = con.cursor()
             cur.execute("SELECT filename FROM jobs WHERE job_token=?", (_token,))
             filename = cur.fetchone()
 
             if filename:
+                cur.execute("UPDATE jobs SET job_confirmed=1 WHERE job_token=?", (_token,))
+                con.commit()
                 bot.send_message(message.chat.id, f'{filename[0]} was added to job queue.\nYou will receive '
                                                   f'a notification when the calculations are finished.')
             else:
