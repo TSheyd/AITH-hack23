@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import sqlite3
 import time
 from secrets import token_urlsafe
@@ -17,6 +18,7 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
+path = f'{os.path.abspath(os.curdir)}/'
 
 external_stylesheets = [dbc.themes.BOOTSTRAP, "assets/segmentation-style.css"]
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -301,11 +303,11 @@ def demo(n_clicks):
         raise PreventUpdate
 
     # Table
-    table = pd.read_csv('./data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
+    table = pd.read_csv(f'{path}data/demo_results_stat.txt', sep='\t')  # Важно!!! columns == ids в data_table
     table = table.to_dict('records')
 
     # Heatmap
-    hm = pd.read_csv('./data/demo_results_hm.txt', sep='\t')
+    hm = pd.read_csv(f'{path}data/demo_results_hm.txt', sep='\t')
     hm = hm[hm.columns[::-1]]
     fig = get_heatmap(hm)
 
@@ -439,7 +441,7 @@ def update_heatmap(rows, derived_virtual_selected_rows, hm_fn, n_clicks):
         raise PreventUpdate
 
     # Load file
-    hm = pd.read_csv(hm_fn, sep='\t')
+    hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
 
     # Filter data
 
