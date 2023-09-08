@@ -206,7 +206,7 @@ data_table = dash_table.DataTable(
     selected_rows=[],
     page_action="native",
     page_current=0,
-    page_size=12,
+    page_size=10,
     style_cell={
         'overflow': 'hidden',
         'textOverflow': 'ellipsis',
@@ -293,9 +293,18 @@ violin_graph = html.Div(
 def get_heatmap(hm) -> go.Figure:
     """
     Create heatmap from passed DataFrame
+    Important!!! "Condition" must be the first column in hm
+
     :param pd.DataFrame hm:
     :return:
     """
+
+    # Create hovertext data. May be suboptimal...
+    text = hm[hm.columns[1:]].values.astype(str).tolist()  # all columns except "Condition"
+    cols = hm.columns.tolist()
+    for i, row in enumerate(text):
+        text[i] = [f"Gene: {gene}<br>Group: {hm.loc[i, 'condition']}<br>Counts: {counts}"
+                   for gene, counts in zip(cols, row)]
 
     # Y-axis legend
     y_ticks = pd.Series(data="", index=hm.index, dtype=str)
@@ -314,14 +323,18 @@ def get_heatmap(hm) -> go.Figure:
         # insert a row after cond_one_pos to make it visible
         line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
         hm = pd.concat([hm.loc[:prev_stack_len - 1], line, hm.loc[prev_stack_len:]]).reset_index(drop=True)
+        text.insert(prev_stack_len, ['Border line']*len(text[0]))
 
         prev_stack_len += cond_len + 1
         y_ticks.loc[y_ticks.shape[0]] = ""  # add empty line to fit hm.shape
+
     hm = hm.drop(columns='condition')
 
     fig = go.Figure()
-    # fig.add_trace(go.Heatmap(z=np.log10(hm).fillna(0), x=hm.columns)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
-    fig.add_trace(go.Heatmap(z=hm, x=hm.columns)).update_layout(margin={'l': 0, 'r': 0, 't': 0, 'b': 0})
+    fig.add_trace(
+        go.Heatmap(z=hm, x=hm.columns,
+                   hoverinfo='text', hovertext=text)
+    ).update_layout(margin={'l': 0, 'r': 10, 't': 0, 'b': 0})
 
     fig.update_yaxes(tickmode='array',
                      tickvals=np.arange(0, hm.shape[0]),
@@ -372,7 +385,7 @@ def demo(demo_clicks, deselect_clicks):
     # Heatmap
     hm_fn = "demo_results_hm.txt"
     hm = pd.read_csv(f'{path}data/{hm_fn}', sep='\t')
-    hm = hm[hm.columns[::-1]]
+    hm = hm[hm.columns[::-1]]  # Condition must be the first row
     fig = get_heatmap(hm)
 
     return table, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
@@ -498,6 +511,7 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
 
     hm_fn = f"{fn}_hm.txt"
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
+    hm = hm[hm.columns[::-1]]  # Condition must be the first row
     fig = get_heatmap(hm)
 
     return stat_df, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
@@ -567,7 +581,7 @@ def update_heatmap(rows, indices, n_clicks, filters_used, hm_fn):
 
     # Load file
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=cols)
-    hm = hm[hm.columns[::-1]]
+    hm = hm[hm.columns[::-1]]  # Condition must be the first row
 
     # Filter data
 
