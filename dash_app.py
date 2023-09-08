@@ -93,16 +93,16 @@ submit_modal = dbc.Modal(
 button_howto = dbc.Button(
     "Info",
     id="howto-open",
-    outline=True,
+    outline=False,
     color="info",
     # Turn off lowercase transformation for class .button in stylesheet
-    style={"textTransform": "none", "font-weight": "bold"},
+    style={"textTransform": "none", "font-weight": "bold", "white-space": "nowrap"},
 )
 
 button_demo = dbc.Button(
     "Load Demo",
     id="demo-button",
-    outline=True,
+    outline=False,
     color="primary",
     style={"textTransform": "none", "white-space": "nowrap"},
 )
@@ -110,7 +110,7 @@ button_demo = dbc.Button(
 button_submit = dbc.Button(
     "Upload File",
     id="submit-button",
-    outline=True,
+    outline=False,
     color="primary",
     style={"textTransform": "none", "font-weight": "bold", "white-space": "nowrap"},
 )
@@ -228,7 +228,7 @@ data_table = dash_table.DataTable(
 
 # Clear filters button
 clear_selected_rows_button = dbc.Button(
-    "clear selection",
+    "Clear selection",
     id="deselect-button",
     outline=True,
     color="secondary",
@@ -236,8 +236,15 @@ clear_selected_rows_button = dbc.Button(
 )
 
 update_heatmap_button = dbc.Button(
-    "update graph",
+    "Update graph",
     id="update-heatmap",
+    outline=True,
+    color="secondary",
+)
+
+download_table_button = dbc.Button(
+    "Download tables",
+    id="table-download-button",
     outline=True,
     color="secondary",
 )
@@ -248,8 +255,13 @@ data_table = [
         id="table-loader-wrapper",
         children=[
             dcc.Loading(id="table-loading", type="circle", children=[data_table]),
-            html.Div(children=[clear_selected_rows_button, update_heatmap_button], id='clear-filters-space',
-                     style={"display": "flex", "justify-content": "space-between", 'padding': '5px'}),
+            dcc.Download(id='table-download'),
+            dcc.Download(id='hm-download'),
+            dbc.Row([
+                dbc.Col(download_table_button, style={'padding': '5px'}),
+                dbc.Col(html.Div(children=[clear_selected_rows_button, update_heatmap_button], id='clear-filters-space',
+                         style={"display": "flex", "justify-content": "flex-end", 'gap': '5px'})),
+            ])
         ]
     ),
     html.Br(),
@@ -365,6 +377,21 @@ def demo(demo_clicks):
         raise PreventUpdate
     # demo dataset url (keep address the same as main app in case user goes from viewing real data to demo)
     return "http://localhost:8070?token=12345"
+
+
+# Download file
+@app.callback(
+    Output('table-download', 'data'),
+    Output('hm-download', 'data'),
+    Input('table-download-button', 'n_clicks'),
+    State('stat_fn', 'children'),
+    State('hm_fn', 'children'),
+    prevent_initial_call=True
+)
+def download_template(demo_clicks, stat_fn, hm_fn):
+    if not demo_clicks or not stat_fn or not hm_fn:
+        raise PreventUpdate
+    return dcc.send_file(f"{path}data/{stat_fn}"), dcc.send_file(f"{path}data/{hm_fn}")
 
 
 def parse_contents(contents, filename):
