@@ -229,6 +229,7 @@ clear_selected_rows_button = dbc.Button(
     id="deselect-button",
     outline=True,
     color="secondary",
+    disabled=True
 )
 
 update_heatmap_button = dbc.Button(
@@ -252,9 +253,15 @@ data_table = [
     html.Div(dbc.Alert("", color="light", id='data-table-row-info'))
 ]
 
+table_row_info_placeholder = "Click on a row to view additional info"
 
-# TODO Diagram
-heatmap_graph = dcc.Graph(id='heatmap_graph', className="m-0")
+# Placeholder for empty graph
+figure_placeholder = go.Figure(layout={'template': 'simple_white'})
+figure_placeholder.update_yaxes(visible=False)
+figure_placeholder.update_xaxes(visible=False)
+
+# Heatmap
+heatmap_graph = dcc.Graph(id='heatmap_graph', className="m-0", figure=figure_placeholder)
 
 # Wrap diagram in a loading animation
 heatmap_graph = html.Div(
@@ -268,7 +275,8 @@ heatmap_graph = html.Div(
     ])
 
 
-violin_graph = dcc.Graph(id='violin_graph', className="m-0")
+# Violin
+violin_graph = dcc.Graph(id='violin_graph', className="m-0", figure=figure_placeholder)
 
 # Wrap in a loading animation
 violin_graph = html.Div(
@@ -332,13 +340,15 @@ def get_violin(hm, gene):
 # Demo results
 @app.callback(
     Output('data-table', 'data', allow_duplicate=True),
-    Output('data-table', 'selected_rows'),
-    Output('data-table', 'selected_cells'),
-    Output('data-table', 'active_cell'),
+    Output('data-table', 'selected_rows', allow_duplicate=True),
+    Output('data-table', 'selected_cells', allow_duplicate=True),
+    Output('data-table', 'active_cell', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
     Output("violin_graph", "figure", allow_duplicate=True),
     Output("stat_fn", "children", allow_duplicate=True),
     Output("hm_fn", "children", allow_duplicate=True),
+    Output('deselect-button', 'disabled', allow_duplicate=True),
+    Output('data-table-row-info', 'children', allow_duplicate=True),
     Input('demo-button', 'n_clicks'),
     Input('deselect-button', 'n_clicks'),
     prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
@@ -359,9 +369,7 @@ def demo(demo_clicks, deselect_clicks):
     hm = hm[hm.columns[::-1]]
     fig = get_heatmap(hm)
 
-    violin_placeholder = go.Figure()
-
-    return table, list(), list(), None, fig, violin_placeholder, stat_fn, hm_fn
+    return table, list(), list(), None, fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
 
 
 def parse_contents(contents, filename):
@@ -440,10 +448,15 @@ def submit_file(contents, filename, n_obs):
 # Retrieve calculated data
 @app.callback(
     Output('data-table', 'data', allow_duplicate=True),
+    Output('data-table', 'selected_rows', allow_duplicate=True),
+    Output('data-table', 'selected_cells', allow_duplicate=True),
+    Output('data-table', 'active_cell', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
-    Output("page_loaded", "children"),
+    Output("violin_graph", "figure", allow_duplicate=True),
     Output("stat_fn", "children", allow_duplicate=True),
     Output("hm_fn", "children", allow_duplicate=True),
+    Output('deselect-button', 'disabled', allow_duplicate=True),
+    Output('data-table-row-info', 'children', allow_duplicate=True),
     Input('url', 'href'),
     Input('deselect-button', 'n_clicks'),
     State("page_loaded", "children"),
@@ -476,7 +489,7 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
     fig = get_heatmap(hm)
 
-    return stat_df, fig, 1, stat_fn, hm_fn
+    return stat_df, list(), list(), None, fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
 
 
 # Table row info on data_table click
@@ -493,12 +506,13 @@ def table_row_info(active_cell, data, hm_fn):
     if not hm_fn or not active_cell:  # file not loaded
         raise PreventUpdate
 
-    selected_gene = data[active_cell['row_id']]["Gene"]
+    selected_row = data[active_cell['row_id']]
+    selected_gene = selected_row["Gene"]
 
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=[selected_gene, 'condition'])
     fig = get_violin(hm, gene=selected_gene)
 
-    row_info = str(active_cell) if active_cell else "Click on a row to view additional info"
+    row_info = selected_gene if active_cell else table_row_info_placeholder
 
     return row_info, fig
 
@@ -587,7 +601,7 @@ app.layout = html.Div(
                 dbc.Row(
                     id='app-content',
                     children=[dbc.Col(data_table, md=6),
-                              dbc.Col([dbc.Row(heatmap_graph), dbc.Row(violin_graph)], md=6)]
+                              dbc.Col([dbc.Row(heatmap_graph), dbc.Row(violin_graph)], md=6, style={'padding': '5px'})]
                 ),
                 html.Br(),
                 dbc.Row(
