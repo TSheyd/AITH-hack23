@@ -3,6 +3,7 @@ import toml
 import os
 import re
 import sqlite3
+from requests import ReadTimeout
 
 try:
     config = toml.load('config.toml').get('tg')
@@ -91,6 +92,10 @@ def main(after_crash=False):
         text_addition = '' if not after_crash else ' после ошибки.'  # сообщение об ошибке может быть и не доставлено
         bot.send_message(admin_chat, f'Бот активирован{text_addition}')
         bot.polling(non_stop=True)
+    except ReadTimeout:
+        pass
+    except ConnectionError:
+        pass
     except Exception as e:
         bot.send_message(admin_chat, f'Ошибка телеграм-бота: {str(e)}')
     finally:
