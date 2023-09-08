@@ -612,6 +612,7 @@ def toggle_info(n1, n2, is_open):
 # Callback for Submit popup button
 @app.callback(
     Output("submit-modal", "is_open"),
+    Output('upload-file', 'disabled'),
     Output("tg-link-button", "disabled", allow_duplicate=True),
     Output("tg-link-button", "color", allow_duplicate=True),
     Output("tg-link-button", "href", allow_duplicate=True),
@@ -625,7 +626,7 @@ def toggle_submit(n1, n2, is_open):
         _open = not is_open
     else:
         _open = is_open
-    return _open, True, "secondary", "https://t.me/koshmarkersbot", 10
+    return _open, False, True, "secondary", "https://t.me/koshmarkersbot", 10
 
 
 # Compile layout
