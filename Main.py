@@ -14,38 +14,38 @@ import os
 
 sys.path.append(os.getcwd())
 
-import PyRauLCF
+# import PyRauLCF
 
 
-def RauLCF(data, cond_col):
-    '''
-    Function that applies Rau low counts filtering.
-    Requirements:
-    - PyRauLCF.py script and neccessary support files
-
-    Arguments:
-    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
-    - cond_col: a name of the condition column
-
-    Returns:
-    - A dataframe with excluded genes with expression lower than threshold for every sample
-    '''
-    matrix = data.drop(columns=[cond_col]).to_numpy(dtype='float32')
-    vector = data[cond_col].apply(lambda x: str(x)).to_list()
-
-    # Running filter
-    threshold = PyRauLCF.FindOptimalThreshold(matrix, vector, 1, 200, 25)
-
-    print("The threshould from RauLCF is " + str(threshold))
-
-    # Removing all genes below threshold
-    filtered_data = data.loc[:, (data.max(axis=0) > threshold)]
-
-    filtered_data[cond_col] = data[cond_col]
-
-    print("Number of removed genes: " + str(len(data.columns) - len(filtered_data.columns)))
-
-    return filtered_data
+# def RauLCF(data, cond_col):
+#     '''
+#     Function that applies Rau low counts filtering.
+#     Requirements:
+#     - PyRauLCF.py script and neccessary support files
+#
+#     Arguments:
+#     - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+#     - cond_col: a name of the condition column
+#
+#     Returns:
+#     - A dataframe with excluded genes with expression lower than threshold for every sample
+#     '''
+#     matrix = data.drop(columns=[cond_col]).to_numpy(dtype='float32')
+#     vector = data[cond_col].apply(lambda x: str(x)).to_list()
+#
+#     # Running filter
+#     threshold = PyRauLCF.FindOptimalThreshold(matrix, vector, 1, 200, 25)
+#
+#     print("The threshould from RauLCF is " + str(threshold))
+#
+#     # Removing all genes below threshold
+#     filtered_data = data.loc[:, (data.max(axis=0) > threshold)]
+#
+#     filtered_data[cond_col] = data[cond_col]
+#
+#     print("Number of removed genes: " + str(len(data.columns) - len(filtered_data.columns)))
+#
+#     return filtered_data
 
 
 def get_features_stability(data, clf, cond_col, rand_state):
@@ -93,8 +93,6 @@ def run_xgb(data, cond_col, top_importance, n_obs, n_iter):
                           random_state=500),
         {
             'n_estimators': (5, 500),
-            'max_depth': (2, 500),
-            'max_leaves': (2, 4),
             'learning_rate': (0.0001, 0.9),
             'booster': ("gbtree", "gblinear", "dart"),
             'reg_alpha': (0.0001, 1)
@@ -178,7 +176,7 @@ def run_utest(data, cond_col):
 
 
 def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, output_hm):
-    """
+    '''
     Function that runs all the functions above. The order:
     1) Rau filter
     2) XGBoost
@@ -186,20 +184,22 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, out
         2b) Retrieveing importances
     3) Mann-Whitney
 
-    :param pd.DataFrame data: a dataframe with counts/pseudocounts of genes expressions and a condition column
-    :param str cond_col: a name of the condition column
-    :param int top_importance: the number of most important genes to keep from each iteration
-    :param int n_obs: required minimal number of occurrences of a gene in the top list across all iterations
-    :param str output_stat: file name for the results output
-    :param str output_hm: file name for the heatmap dataset output
-    :param int n_iter: number of random subsamples
-    :return: A dataframe with genes, groups tested, pvals and padj
-    """
+    Arguments:
+    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    - cond_col: a name of the condition column
+    - top_importance: the number of most important genes to keep from each iteration
+    - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+    - n_iter: number of random subsamples
+    - output_stat: file name for the results output
+    - output_hm: file name for the heatmap dataset output
 
+    Returns:
+    - A dataframe with genes, groups tested, pvals and padj
+    '''
     raw_data = pd.read_table(data, index_col=None)
 
-    filtered_data = RauLCF(raw_data, cond_col)
-
+    # filtered_data = RauLCF(raw_data, cond_col)
+    filtered_data = raw_data
     filtered_data = filtered_data.apply(lambda x: pd.to_numeric(x.convert_dtypes()))
 
     ml_biomarkers = run_xgb(filtered_data, cond_col, top_importance, n_obs, n_iter)

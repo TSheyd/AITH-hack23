@@ -8,6 +8,8 @@ from time import time
 
 from copy import deepcopy
 
+from multiprocessing import Process
+
 
 from tg_bot import launch_bot, send_notification
 
@@ -39,7 +41,8 @@ def main_loop(redis_conn, r_queue):
                                       float(row[3]),
                                       100,
                                       f"./data/{_token}_stat.txt",
-                                      f"./data/{_token}_hm.txt")
+                                      f"./data/{_token}_hm.txt",
+                                      job_timeout=200000)
                 cur_jobs.add(job.id)
                 j2t[job.id]=_token
                 cur.execute("UPDATE jobs SET start_time=? WHERE job_token=?", (_time, _token))
@@ -79,9 +82,10 @@ def main_loop(redis_conn, r_queue):
 if __name__ == '__main__':
     # Timer(1, open_browser).start()
     redis_conn = Redis(host='localhost', port=6379, db=0)
-    ping_response = redis_conn.ping()
-    print(f"Redis Ping Response: {ping_response}")
     # Create a worker for the "default" queue with the specified connection
     queue = Queue(connection=redis_conn)
-    queue.enqueue(launch_bot)
+    # p1 = Process(target=launch_bot)
+    # p1.start()
+    ping_response = redis_conn.ping()
+    print(f"Redis Ping Response: {ping_response}")
     main_loop(redis_conn, queue)
