@@ -33,9 +33,9 @@ The analysis consists of following steps:
 <a name="sec2"></a>
 ## System requirements
 
-- Custom Rau filter written in C# requires a .NET runtime, which can be found [here]()
-- Python 3.9+ is recommended
-- Required python packages can be found in requirements.txt. Keep in mind that scikit-optimize requires older NumPy versions(~1.23.5)
+- Custom Rau filter written in C# requires a .NET framework, which can be found [here](https://dotnet.microsoft.com/en-us/download).
+- Python 3.9+ is recommended, older versions were not tested.
+- Required python packages can be found in requirements.txt. Keep in mind that scikit-optimize requires older NumPy versions(~1.23.5).
 
 <a name="sec3"></a>
 ## Deployment
