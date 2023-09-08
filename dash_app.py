@@ -470,7 +470,13 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     with sqlite3.connect("tg/jobs.db") as con:
         cur = con.cursor()
         cur.execute("SELECT filename FROM jobs WHERE job_token=?", (job_token,))
-        fn = cur.fetchone()[0]
+        fn = cur.fetchone()
+
+        if fn:
+            fn = fn[0]
+        else:
+            raise PreventUpdate
+
     con.close()
 
     # Load files
