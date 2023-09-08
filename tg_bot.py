@@ -17,6 +17,8 @@ except FileNotFoundError:
 path = f'{os.path.abspath(os.curdir)}/'
 
 bot = telebot.TeleBot(token=bot_token)
+
+
 # Telegram bots have a limit of 4096 symbols per message, but I don't think this should cause any problems here,
 # thus standard bot.send_message(chat_id, text, **kwargs) will do.
 
@@ -63,22 +65,13 @@ def send_welcome(message):
                                           f'or by using the /help command (TODO).')
 
 
-def send_notification(user_id):
-    with sqlite3.connect(f"{path}tg/jobs.db") as con:
-        cur = con.cursor()
-        # sending only one message at a time, may proof with ORDER BY id DESC LIMIT 1
-        cur.execute("SELECT user_filename, job_token FROM jobs WHERE user_id=? AND end_time IS NOT NULL", (user_id,))
-        filename, job_token = cur.fetchone()
+def send_notification(user_id, filename, job_token):
+    bot.send_message(user_id,
+                     f'Calculations on {add_escape_chars(filename)} are complete\!'
+                     f'\nYou can now check the results by following the '
+                     f'[link](http://127.0.0.1:8070/?token={job_token})',
+                     parse_mode='MarkdownV2')
 
-        bot.send_message(user_id,
-                         f'Calculations on {add_escape_chars(filename)} are complete\!'
-                         f'\nYou can now check the results by following the '
-                         f'[link](http://127.0.0.1:8070/?token={job_token})',
-                         parse_mode='MarkdownV2')
-
-        cur.execute("UPDATE jobs SET notification_sent=1 WHERE job_token=?", (job_token,))
-        con.commit()
-    con.close()
     return 0
 
 
@@ -100,6 +93,10 @@ def main(after_crash=False):
         bot.send_message(admin_chat, f'Ошибка телеграм-бота: {str(e)}')
     finally:
         main(after_crash=True)  # не в except, т.к. send_message тоже может вызвать exception
+
+
+def launch_bot():
+    main()
 
 
 if __name__ == "__main__":

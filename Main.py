@@ -16,6 +16,7 @@ sys.path.append(os.getcwd())
 
 import PyRauLCF
 
+
 def RauLCF(data, cond_col):
     '''
     Function that applies Rau low counts filtering.
@@ -60,12 +61,12 @@ def get_features_stability(data, clf, cond_col, rand_state):
     - A dataframe with genes importances
     '''
     sample = resample(data, n_samples=int(data.shape[0] * 0.8), stratify=data[cond_col], random_state=rand_state)
-    
+
     clf = clf.fit(sample.drop(columns=[cond_col]), sample[cond_col].astype('int'))
-    
+
     feature_importance = pd.DataFrame(clf.feature_importances_, sample.drop(columns=cond_col).columns)
     feature_importance.rename(columns={0: "Importance"}, inplace=True)
-    
+
     return (feature_importance)
 
 
@@ -87,8 +88,8 @@ def run_xgb(data, cond_col, top_importance, n_obs, n_iter):
     - A dataframe with important genes
     '''
     XGBclf = BayesSearchCV(
-        xgb.XGBClassifier(objective="multi:softmax", 
-                          num_class=str(len(np.unique(data[cond_col]))), 
+        xgb.XGBClassifier(objective="multi:softmax",
+                          num_class=str(len(np.unique(data[cond_col]))),
                           random_state=500),
         {
             'n_estimators': (5, 500),
@@ -128,7 +129,7 @@ def run_xgb(data, cond_col, top_importance, n_obs, n_iter):
 
     stability_xgb['genes'] = stability_xgb.index
 
-    stable_genes = stability_xgb.loc[stability_xgb.isna().sum(axis=1) <= n_obs*n_iter, 'genes']
+    stable_genes = stability_xgb.loc[stability_xgb.isna().sum(axis=1) <= n_obs * n_iter, 'genes']
 
     ml_filtered_data = data[stable_genes.values.tolist()]
     ml_filtered_data[cond_col] = data[cond_col]
@@ -222,6 +223,8 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, out
 Test call
 ------------------------------------------------------
 '''
-MarkerFinder("./data/dummy_expr.txt", "condition", 50, 0.5, 100, "./data/results_stat.txt", "./data/results_hm.txt")
+
+if __name__ == "__main__":
+    MarkerFinder("./data/dummy_expr.txt", "condition", 50, 0.5, 100, "./data/results_stat.txt", "./data/results_hm.txt")
 
 # %%

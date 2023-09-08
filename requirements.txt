@@ -9,3 +9,8 @@ statsmodels~=0.14.0
 requests~=2.31.0
 furl~=2.1.3
 pythonnet~=3.0.2
+scopt==0.0.5
+redis~=5.0.0
+rq~=1.15.1
+telebot~=0.0.5
+toml~=0.10.2
