@@ -178,7 +178,7 @@ def run_utest(data, cond_col):
 
 
 def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, output_hm):
-    '''
+    """
     Function that runs all the functions above. The order:
     1) Rau filter
     2) XGBoost
@@ -186,25 +186,23 @@ def MarkerFinder(data, cond_col, top_importance, n_obs, n_iter, output_stat, out
         2b) Retrieveing importances
     3) Mann-Whitney
 
-    Arguments:
-    - data: a dataframe with counts/pseudocounts of genes expressions and a condition column
-    - cond_col: a name of the condition column
-    - top_importance: the number of most important genes to keep from each iteration
-    - n_obs: required minimal number of occurrences of a gene in the top list across all iterations
-    - n_iter: number of random subsamples
-    - output_stat: file name for the results output
-    - output_hm: file name for the heatmap dataset output
+    :param pd.DataFrame data: a dataframe with counts/pseudocounts of genes expressions and a condition column
+    :param str cond_col: a name of the condition column
+    :param int top_importance: the number of most important genes to keep from each iteration
+    :param int n_obs: required minimal number of occurrences of a gene in the top list across all iterations
+    :param str output_stat: file name for the results output
+    :param str output_hm: file name for the heatmap dataset output
+    :param int n_iter: number of random subsamples
+    :return: A dataframe with genes, groups tested, pvals and padj
+    """
 
-    Returns:
-    - A dataframe with genes, groups tested, pvals and padj
-    '''
     raw_data = pd.read_table(data, index_col=None)
 
     filtered_data = RauLCF(raw_data, cond_col)
 
     filtered_data = filtered_data.apply(lambda x: pd.to_numeric(x.convert_dtypes()))
 
-    ml_biomarkers = run_xgb(filtered_data, cond_col, top_importance, n_obs)
+    ml_biomarkers = run_xgb(filtered_data, cond_col, top_importance, n_obs, n_iter)
 
     results = run_utest(ml_biomarkers, cond_col)
 
