@@ -228,14 +228,14 @@ clear_selected_rows_button = dbc.Button(
     "clear selection",
     id="deselect-button",
     outline=True,
-    color="secondary",  # todo update with callback on selection --> primary
+    color="secondary",
 )
 
 update_heatmap_button = dbc.Button(
     "update graph",
     id="update-heatmap",
     outline=True,
-    color="secondary",  # todo update with callback on selection --> primary
+    color="secondary",
 )
 
 # Table module
@@ -267,6 +267,19 @@ heatmap_graph = html.Div(
         children=[heatmap_graph])
     ])
 
+
+violin_graph = dcc.Graph(id='violin_graph', className="m-0")
+
+# Wrap in a loading animation
+violin_graph = html.Div(
+    id="violin-loader-wrapper",
+    style={"height": "100%"},
+    children=[dcc.Loading(
+        id="violin-loading",
+        parent_style={"height": "100%"},
+        type="circle",
+        children=[violin_graph])
+    ])
 
 def get_heatmap(hm) -> go.Figure:
     """
@@ -307,11 +320,23 @@ def get_heatmap(hm) -> go.Figure:
     return fig
 
 
+def get_violin(hm, gene):
+
+    fig = go.Figure()
+    fig.add_violin(y=hm[gene], x=hm['condition'])
+    fig.update_layout(title_text=gene)
+
+    return fig
+
+
 # Demo results
 @app.callback(
     Output('data-table', 'data', allow_duplicate=True),
     Output('data-table', 'selected_rows'),
+    Output('data-table', 'selected_cells'),
+    Output('data-table', 'active_cell'),
     Output("heatmap_graph", "figure", allow_duplicate=True),
+    Output("violin_graph", "figure", allow_duplicate=True),
     Output("stat_fn", "children", allow_duplicate=True),
     Output("hm_fn", "children", allow_duplicate=True),
     Input('demo-button', 'n_clicks'),
@@ -325,6 +350,7 @@ def demo(demo_clicks, deselect_clicks):
     # Table
     stat_fn = "demo_results_stat.txt"
     table = pd.read_csv(f'{path}data/{stat_fn}', sep='\t')  # Важно!!! columns == ids в data_table
+    table['id'] = table.index
     table = table.to_dict('records')
 
     # Heatmap
@@ -333,7 +359,9 @@ def demo(demo_clicks, deselect_clicks):
     hm = hm[hm.columns[::-1]]
     fig = get_heatmap(hm)
 
-    return table, list(), fig, stat_fn, hm_fn
+    violin_placeholder = go.Figure()
+
+    return table, list(), list(), None, fig, violin_placeholder, stat_fn, hm_fn
 
 
 def parse_contents(contents, filename):
@@ -378,7 +406,7 @@ def create_link_to_telegram():
     Output('upload-file', 'disabled'),
     Output('tg-link-button', 'disabled'),
     Output('tg-link-button', 'href'),
-    Input('upload-file', 'contents'),  # todo trigger on final send button
+    Input('upload-file', 'contents'),
     State('upload-file', 'filename'),
     State('n_obs', 'value'),
     prevent_initial_call=True
@@ -441,6 +469,7 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     # Load files
     stat_fn = f"{fn}_stat.txt"
     stat_df = pd.read_csv(f"{path}data/{stat_fn}", sep='\t')
+    stat_df['id'] = stat_df.index
     stat_df = stat_df.to_dict('records')
 
     hm_fn = f"{fn}_hm.txt"
@@ -453,11 +482,25 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
 # Table row info on data_table click
 @app.callback(
     Output('data-table-row-info', 'children'),
-    Input('data-table', 'active_cell')
+    Output('violin_graph', 'figure'),
+    Input('data-table', 'active_cell'),
+    Input('data-table', 'data'),
+    State("hm_fn", "children"),
+    prevent_initial_call=True
 )
-def table_row_info(active_cell):
-    # todo get row content, return useful data
-    return str(active_cell) if active_cell else "Click on a row to view additional info"
+def table_row_info(active_cell, data, hm_fn):
+
+    if not hm_fn or not active_cell:  # file not loaded
+        raise PreventUpdate
+
+    selected_gene = data[active_cell['row_id']]["Gene"]
+
+    hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=[selected_gene, 'condition'])
+    fig = get_violin(hm, gene=selected_gene)
+
+    row_info = str(active_cell) if active_cell else "Click on a row to view additional info"
+
+    return row_info, fig
 
 
 # Table row info on data_table click
@@ -542,8 +585,9 @@ app.layout = html.Div(
                 ),
                 html.Br(),
                 dbc.Row(
-                    id="app-content",
-                    children=[dbc.Col(data_table, md=6), dbc.Col(heatmap_graph, md=6)],
+                    id='app-content',
+                    children=[dbc.Col(data_table, md=6),
+                              dbc.Col([dbc.Row(heatmap_graph), dbc.Row(violin_graph)], md=6)]
                 ),
                 html.Br(),
                 dbc.Row(
