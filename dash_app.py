@@ -355,13 +355,13 @@ def get_violin(hm, gene):
 @app.callback(
     Output('url', 'href'),
     Input('demo-button', 'n_clicks'),
-    Input('deselect-button', 'n_clicks'),
     prevent_initial_call=True
 )
-def demo(demo_clicks, deselect_clicks):
-    if demo_clicks is None and deselect_clicks is None:
+def demo(demo_clicks):
+    if demo_clicks is None:
         raise PreventUpdate
-    return "https://google.com?token=12345"  # dummy url to get token from
+    # demo dataset url (keep address the same as main app in case user goes from viewing real data to demo)
+    return "http://localhost:8070?token=12345"
 
 
 def parse_contents(contents, filename):
@@ -439,21 +439,18 @@ def submit_file(contents, filename, n_obs):
 
 # Retrieve calculated data
 @app.callback(
-    Output('data-table', 'data', allow_duplicate=True),
-    Output('data-table', 'selected_rows', allow_duplicate=True),
-    Output('data-table', 'selected_cells', allow_duplicate=True),
-    Output('data-table', 'active_cell', allow_duplicate=True),
-    Output('data-table', 'filter_query', allow_duplicate=True),
-    Output("heatmap_graph", "figure", allow_duplicate=True),
-    Output("violin_graph", "figure", allow_duplicate=True),
-    Output("stat_fn", "children", allow_duplicate=True),
-    Output("hm_fn", "children", allow_duplicate=True),
-    Output('deselect-button', 'disabled', allow_duplicate=True),
-    Output('data-table-row-info', 'children', allow_duplicate=True),
+    Output('data-table', 'data'),
+    Output('data-table', 'selected_rows'),
+    Output('data-table', 'selected_cells'),
+    Output('data-table', 'active_cell'),
+    Output('data-table', 'filter_query'),
+    Output("heatmap_graph", "figure"),
+    Output("stat_fn", "children"),
+    Output("hm_fn", "children"),
+    Output('deselect-button', 'disabled'),
     Input('url', 'href'),
     Input('deselect-button', 'n_clicks'),
     State("page_loaded", "children"),
-    prevent_initial_call='initial_duplicate'
 )
 def load_results(href: str, n_clicks: int, page_loaded: bool):
     if page_loaded and not n_clicks:
@@ -487,7 +484,7 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     hm = hm[hm.columns[::-1]]  # Condition must be the first row
     fig = get_heatmap(hm)
 
-    return stat_df, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
+    return stat_df, list(), list(), None, "", fig, stat_fn, hm_fn, False
 
 
 # Table row info on data_table click
@@ -501,8 +498,11 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
 )
 def table_row_info(active_cell, data, hm_fn):
 
-    if not hm_fn or not active_cell:  # file not loaded
+    if not hm_fn:  # file not loaded
         raise PreventUpdate
+
+    if not active_cell:
+        return table_row_info_placeholder, figure_placeholder
 
     selected_row = data[active_cell['row_id']]
     selected_gene = selected_row["Gene"].split(']')[0].strip('[')  # [Gene](GeneDBURL?query=Gene) --> Gene
@@ -621,7 +621,7 @@ app.layout = html.Div(
         # Invisible elements for client-side variable storage (yeah)
 
         # represents the URL bar, doesn't render anything
-        dcc.Location(id='url', refresh=False),
+        dcc.Location(id='url', refresh=True),
 
         # trigger for page_loaded bool - to distinguish between reset filters and page initial load
         html.Div(id='page_loaded', children=0, style=dict(display='none')),
@@ -635,7 +635,7 @@ app.layout = html.Div(
 
 
 def open_browser():
-    webbrowser.open_new("http://localhost:8070")
+    webbrowser.open_new("http://localhost:8070?token=12345")
 
 
 if __name__ == '__main__':
