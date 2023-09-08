@@ -489,6 +489,10 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     stat_df['id'] = stat_df.index
     stat_df = stat_df.to_dict('records')
 
+    db_url = "https://www.ncbi.nlm.nih.gov/gene/?term="
+    for i, el in enumerate(stat_df):
+        stat_df[i]["Gene"] = f"[{el['Gene']}]({db_url}{el['Gene']})"
+
     hm_fn = f"{fn}_hm.txt"
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
     fig = get_heatmap(hm)
