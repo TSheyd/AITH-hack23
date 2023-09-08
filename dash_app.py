@@ -143,10 +143,8 @@ header = dbc.Navbar(
                                 dbc.Nav(
                                     [
                                         dbc.NavItem(button_submit, style={'padding': '1rem', "font-weight": "bold"}),
-                                        # todo add |
                                         dbc.NavItem(button_demo, style={'padding': '1rem', "textTransform": "none"}),
                                         dbc.NavItem(button_howto, style={'padding': '1rem', "textTransform": "none"}),
-                                        # Todo add result history
                                     ],
                                     navbar=True,
                                 ),
@@ -204,7 +202,7 @@ data_table = dash_table.DataTable(
     sort_action="native",
     sort_mode="multi",
     column_selectable="single",
-    row_selectable='multi',  # todo checkboxes are not of same size
+    row_selectable='multi',
     selected_columns=[],
     selected_rows=[],
     page_action="native",
@@ -258,9 +256,9 @@ data_table = [
             dcc.Download(id='table-download'),
             dcc.Download(id='hm-download'),
             dbc.Row([
-                dbc.Col(download_table_button, style={'padding': '5px'}),
+                dbc.Col(download_table_button),
                 dbc.Col(html.Div(children=[clear_selected_rows_button, update_heatmap_button], id='clear-filters-space',
-                         style={"display": "flex", "justify-content": "flex-end", 'gap': '5px'})),
+                                 style={"display": "flex", "justify-content": "flex-end", 'gap': '5px'})),
             ])
         ]
     ),
@@ -338,7 +336,7 @@ def get_heatmap(hm) -> go.Figure:
         # insert a row after cond_one_pos to make it visible
         line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
         hm = pd.concat([hm.loc[:prev_stack_len - 1], line, hm.loc[prev_stack_len:]]).reset_index(drop=True)
-        text.insert(prev_stack_len, ['Group border line']*len(text[0]))
+        text.insert(prev_stack_len, ['Group border line'] * len(text[0]))
 
         prev_stack_len += cond_len + 1
         y_ticks.loc[y_ticks.shape[0]] = ""  # add empty line to fit hm.shape
@@ -353,16 +351,14 @@ def get_heatmap(hm) -> go.Figure:
 
     fig.update_yaxes(tickmode='array',
                      tickvals=np.arange(0, hm.shape[0]),
-                     ticktext=y_ticks)  # todo hovertext
+                     ticktext=y_ticks)
     return fig
 
 
 def get_violin(hm, gene):
-
     fig = go.Figure()
     fig.add_violin(y=hm[gene], x=hm['condition'])
     fig.update_layout(title_text=gene, template='ggplot2', margin={'pad': 15})
-
     return fig
 
 
@@ -535,7 +531,6 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     prevent_initial_call=True
 )
 def table_row_info(active_cell, data, hm_fn):
-
     if not hm_fn:  # file not loaded
         raise PreventUpdate
 
@@ -584,10 +579,10 @@ def update_heatmap(rows, indices, n_clicks, filters_used, hm_fn):
     if "update-heatmap" != ctx.triggered_id:  # button not pressed
         raise PreventUpdate
 
-    cols = None
-    if indices:  # selected tick boxes
+    cols = None  # Whole file
+    if indices:  # Selected tick boxes
         cols = [row['Gene'].split(']')[0].strip('[') for row in [rows[i] for i in indices]] + ['condition']
-    elif filters_used:  # filtered values todo instead checl if any filters are used, bc othe
+    elif filters_used:  # Filtered values
         cols = [row['Gene'].split(']')[0].strip('[') for row in rows] + ['condition']
 
     # Load file
