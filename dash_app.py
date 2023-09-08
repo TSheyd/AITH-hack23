@@ -46,8 +46,8 @@ submit_modal = dbc.Modal(
         dbc.ModalHeader([html.H5("Load Data")]),
         dbc.ModalBody([
 
-            dbc.InputGroup([dbc.InputGroupText('n_obs'),
-                            dbc.Input(placeholder='n_obs', type='number', id='n_obs', min=1)]),
+            dbc.InputGroup([dbc.InputGroupText('minimal number of occurrences of a gene'),
+                            dbc.Input(value=10, type='number', id='n_obs', min=1)]),
 
             html.Hr(),
             dbc.Row(
@@ -68,19 +68,22 @@ submit_modal = dbc.Modal(
             dbc.Row(
                 # Hidden alert in case wrong file format gets loaded
                 dbc.Alert(
-                    "ERROR. Supported file formats: .tsv or .csv",
+                    "Error submitting data."
+                    "\nSupported file format - .csv (comma or tab delimiter)"
+                    "\nn_obs (number of observations, integer) must be specified",
                     id="alert-file-fmt",
                     dismissable=True,
                     fade=True,
                     is_open=False,
-                    duration=5000,
+                    duration=10000,
                     color="danger"
                 )
             )
         ]),
 
         dbc.ModalFooter([
-            dbc.Button("Submit", color="primary", href="https://t.me/koshmarkersbot", id="tg-link-button", active=False),
+            dbc.Button("Submit", color="secondary", href="https://t.me/koshmarkersbot", target='_blank',
+                       id="tg-link-button", active=False),
             dbc.Button("Close", color="secondary", id="submit-close", className="submit-bn")
         ]),
     ],
@@ -404,20 +407,21 @@ def create_link_to_telegram():
 @app.callback(
     Output("alert-file-fmt", "is_open"),
     Output('upload-file', 'disabled'),
-    Output('tg-link-button', 'disabled'),
-    Output('tg-link-button', 'href'),
+    Output('tg-link-button', 'disabled', allow_duplicate=True),
+    Output('tg-link-button', 'color', allow_duplicate=True),
+    Output('tg-link-button', 'href', allow_duplicate=True),
     Input('upload-file', 'contents'),
     State('upload-file', 'filename'),
     State('n_obs', 'value'),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def submit_file(contents, filename, n_obs):
     if not contents:
         raise PreventUpdate
     else:
         df = parse_contents(contents, filename)
-        if isinstance(df, str):
-            return True, False, True, "https://t.me/koshmarkersbot"  # Raise alert if failed to parse file
+        if isinstance(df, str) or not n_obs:
+            return True, False, True, "secondary", "https://t.me/koshmarkersbot"  # Raise alert if failed to parse input
 
     # checks were passed in load_file
     df = parse_contents(contents, filename)
@@ -434,7 +438,7 @@ def submit_file(contents, filename, n_obs):
         con.commit()
     con.close()
 
-    return False, True, False, f"https://t.me/koshmarkersbot?start={job_token}"  # Open a button with a link to tg
+    return False, True, False, "primary", f"https://t.me/koshmarkersbot?start={job_token}"  # Open a button with a link to tg
 
 
 # Retrieve calculated data
@@ -579,13 +583,20 @@ def toggle_info(n1, n2, is_open):
 # Callback for Submit popup button
 @app.callback(
     Output("submit-modal", "is_open"),
+    Output("tg-link-button", "active", allow_duplicate=True),
+    Output("tg-link-button", "color", allow_duplicate=True),
+    Output("tg-link-button", "href", allow_duplicate=True),
+    Output("n_obs", "value"),
     [Input("submit-button", "n_clicks"), Input("submit-close", "n_clicks")],
     [State("submit-modal", "is_open")],
+    prevent_initial_call='initial_duplicate'
 )
 def toggle_submit(n1, n2, is_open):
     if n1 or n2:
-        return not is_open
-    return is_open
+        _open = not is_open
+    else:
+        _open = is_open
+    return _open, False, "secondary", "https://t.me/koshmarkersbot", 10
 
 
 # Compile layout
