@@ -621,7 +621,7 @@ app.layout = html.Div(
         # Invisible elements for client-side variable storage (yeah)
 
         # represents the URL bar, doesn't render anything
-        html.Div(id='url', children="", style=dict(display='none')),
+        dcc.Location(id='url', refresh=False),
 
         # trigger for page_loaded bool - to distinguish between reset filters and page initial load
         html.Div(id='page_loaded', children=0, style=dict(display='none')),
