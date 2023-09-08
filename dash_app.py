@@ -190,7 +190,7 @@ heatmap_info = html.Div(
 data_table = dash_table.DataTable(
     id='data-table',
     columns=[
-        dict(id='Gene', name='Gene'),
+        dict(id='Gene', name='Gene', presentation='markdown'),
         dict(id='Groups', name='Group'),
         dict(id='pval', name='p-value', type='numeric', format=Format(precision=2, scheme=Scheme.exponent)),
         dict(id='padj', name='p-value (adj)', type='numeric', format=Format(precision=2, scheme=Scheme.exponent))
@@ -363,6 +363,10 @@ def demo(demo_clicks, deselect_clicks):
     table['id'] = table.index
     table = table.to_dict('records')
 
+    db_url = "https://www.ncbi.nlm.nih.gov/gene/?term="
+    for i, el in enumerate(table):
+        table[i]["Gene"] = f"[{el['Gene']}]({db_url}{el['Gene']})"
+
     # Heatmap
     hm_fn = "demo_results_hm.txt"
     hm = pd.read_csv(f'{path}data/{hm_fn}', sep='\t')
@@ -507,14 +511,18 @@ def table_row_info(active_cell, data, hm_fn):
         raise PreventUpdate
 
     selected_row = data[active_cell['row_id']]
-    selected_gene = selected_row["Gene"]
+    selected_gene = selected_row["Gene"].split(']')[0].strip('[')  # [Gene](GeneDBURL?query=Gene) --> Gene
 
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=[selected_gene, 'condition'])
     fig = get_violin(hm, gene=selected_gene)
 
     row_info = selected_gene if active_cell else table_row_info_placeholder
 
-    return row_info, fig
+    url = f"https://www.ncbi.nlm.nih.gov/gene/?term={selected_gene}"
+
+    message = dcc.Link(row_info, href=url, target="_blank")
+
+    return message, fig
 
 
 # Table row info on data_table click
@@ -544,9 +552,9 @@ def update_heatmap(rows, indices, n_clicks, hm_fn):
         raise PreventUpdate
 
     if indices:  # selected tick boxes
-        cols = [row['Gene'] for row in [rows[i] for i in indices]] + ['condition']
+        cols = [row['Gene'].split(']')[0].strip('[') for row in [rows[i] for i in indices]] + ['condition']
     else:  # filtered values
-        cols = [row['Gene'] for row in rows] + ['condition']
+        cols = [row['Gene'].split(']')[0].strip('[') for row in rows] + ['condition']
 
     # Load file
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=cols)
