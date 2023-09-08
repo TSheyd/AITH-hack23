@@ -289,6 +289,7 @@ violin_graph = html.Div(
         children=[violin_graph])
     ])
 
+
 def get_heatmap(hm) -> go.Figure:
     """
     Create heatmap from passed DataFrame
@@ -343,6 +344,7 @@ def get_violin(hm, gene):
     Output('data-table', 'selected_rows', allow_duplicate=True),
     Output('data-table', 'selected_cells', allow_duplicate=True),
     Output('data-table', 'active_cell', allow_duplicate=True),
+    Output('data-table', 'filter_query', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
     Output("violin_graph", "figure", allow_duplicate=True),
     Output("stat_fn", "children", allow_duplicate=True),
@@ -373,7 +375,7 @@ def demo(demo_clicks, deselect_clicks):
     hm = hm[hm.columns[::-1]]
     fig = get_heatmap(hm)
 
-    return table, list(), list(), None, fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
+    return table, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
 
 
 def parse_contents(contents, filename):
@@ -455,6 +457,7 @@ def submit_file(contents, filename, n_obs):
     Output('data-table', 'selected_rows', allow_duplicate=True),
     Output('data-table', 'selected_cells', allow_duplicate=True),
     Output('data-table', 'active_cell', allow_duplicate=True),
+    Output('data-table', 'filter_query', allow_duplicate=True),
     Output("heatmap_graph", "figure", allow_duplicate=True),
     Output("violin_graph", "figure", allow_duplicate=True),
     Output("stat_fn", "children", allow_duplicate=True),
@@ -497,7 +500,7 @@ def load_results(href: str, n_clicks: int, page_loaded: bool):
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t')
     fig = get_heatmap(hm)
 
-    return stat_df, list(), list(), None, fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
+    return stat_df, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
 
 
 # Table row info on data_table click
@@ -535,10 +538,11 @@ def table_row_info(active_cell, data, hm_fn):
     Input('data-table', "derived_virtual_data"),
     Input('data-table', "derived_virtual_selected_rows"),
     Input('update-heatmap', "n_clicks"),
+    Input('data-table', 'filter_query'),
     State("hm_fn", "children"),
     prevent_initial_call=True
 )
-def update_heatmap(rows, indices, n_clicks, hm_fn):
+def update_heatmap(rows, indices, n_clicks, filters_used, hm_fn):
     # When the table is first rendered, `derived_virtual_data` and
     # `derived_virtual_selected_rows` will be `None`. This is due to an
     # idiosyncrasy in Dash (unsupplied properties are always None and Dash
@@ -555,13 +559,15 @@ def update_heatmap(rows, indices, n_clicks, hm_fn):
     if "update-heatmap" != ctx.triggered_id:  # button not pressed
         raise PreventUpdate
 
+    cols = None
     if indices:  # selected tick boxes
         cols = [row['Gene'].split(']')[0].strip('[') for row in [rows[i] for i in indices]] + ['condition']
-    else:  # filtered values
+    elif filters_used:  # filtered values todo instead checl if any filters are used, bc othe
         cols = [row['Gene'].split(']')[0].strip('[') for row in rows] + ['condition']
 
     # Load file
     hm = pd.read_csv(f"{path}data/{hm_fn}", sep='\t', usecols=cols)
+    hm = hm[hm.columns[::-1]]
 
     # Filter data
 
