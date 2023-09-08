@@ -323,7 +323,7 @@ def get_heatmap(hm) -> go.Figure:
         # insert a row after cond_one_pos to make it visible
         line = pd.DataFrame(data=hm.max().max(), columns=hm.columns, index=[0])
         hm = pd.concat([hm.loc[:prev_stack_len - 1], line, hm.loc[prev_stack_len:]]).reset_index(drop=True)
-        text.insert(prev_stack_len, ['Border line']*len(text[0]))
+        text.insert(prev_stack_len, ['Group border line']*len(text[0]))
 
         prev_stack_len += cond_len + 1
         y_ticks.loc[y_ticks.shape[0]] = ""  # add empty line to fit hm.shape
@@ -353,42 +353,15 @@ def get_violin(hm, gene):
 
 # Demo results
 @app.callback(
-    Output('data-table', 'data', allow_duplicate=True),
-    Output('data-table', 'selected_rows', allow_duplicate=True),
-    Output('data-table', 'selected_cells', allow_duplicate=True),
-    Output('data-table', 'active_cell', allow_duplicate=True),
-    Output('data-table', 'filter_query', allow_duplicate=True),
-    Output("heatmap_graph", "figure", allow_duplicate=True),
-    Output("violin_graph", "figure", allow_duplicate=True),
-    Output("stat_fn", "children", allow_duplicate=True),
-    Output("hm_fn", "children", allow_duplicate=True),
-    Output('deselect-button', 'disabled', allow_duplicate=True),
-    Output('data-table-row-info', 'children', allow_duplicate=True),
+    Output('url', 'href'),
     Input('demo-button', 'n_clicks'),
     Input('deselect-button', 'n_clicks'),
-    prevent_initial_call=True  # todo возможно апп можно загружать уже с демо-данными?
+    prevent_initial_call=True
 )
 def demo(demo_clicks, deselect_clicks):
     if demo_clicks is None and deselect_clicks is None:
         raise PreventUpdate
-
-    # Table
-    stat_fn = "demo_results_stat.txt"
-    table = pd.read_csv(f'{path}data/{stat_fn}', sep='\t')  # Важно!!! columns == ids в data_table
-    table['id'] = table.index
-    table = table.to_dict('records')
-
-    db_url = "https://www.ncbi.nlm.nih.gov/gene/?term="
-    for i, el in enumerate(table):
-        table[i]["Gene"] = f"[{el['Gene']}]({db_url}{el['Gene']})"
-
-    # Heatmap
-    hm_fn = "demo_results_hm.txt"
-    hm = pd.read_csv(f'{path}data/{hm_fn}', sep='\t')
-    hm = hm[hm.columns[::-1]]  # Condition must be the first row
-    fig = get_heatmap(hm)
-
-    return table, list(), list(), None, "", fig, figure_placeholder, stat_fn, hm_fn, False, table_row_info_placeholder
+    return "https://google.com?token=12345"  # dummy url to get token from
 
 
 def parse_contents(contents, filename):
@@ -648,7 +621,7 @@ app.layout = html.Div(
         # Invisible elements for client-side variable storage (yeah)
 
         # represents the URL bar, doesn't render anything
-        dcc.Location(id='url', refresh=False),
+        html.Div(id='url', children="", style=dict(display='none')),
 
         # trigger for page_loaded bool - to distinguish between reset filters and page initial load
         html.Div(id='page_loaded', children=0, style=dict(display='none')),
