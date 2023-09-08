@@ -96,7 +96,7 @@ button_howto = dbc.Button(
     outline=True,
     color="info",
     # Turn off lowercase transformation for class .button in stylesheet
-    style={"textTransform": "none"},
+    style={"textTransform": "none", "font-weight": "bold"},
 )
 
 button_demo = dbc.Button(
@@ -349,7 +349,7 @@ def get_violin(hm, gene):
 
     fig = go.Figure()
     fig.add_violin(y=hm[gene], x=hm['condition'])
-    fig.update_layout(title_text=gene)
+    fig.update_layout(title_text=gene, template='ggplot2', margin={'pad': 15})
 
     return fig
 
@@ -583,7 +583,7 @@ def toggle_info(n1, n2, is_open):
 # Callback for Submit popup button
 @app.callback(
     Output("submit-modal", "is_open"),
-    Output("tg-link-button", "active", allow_duplicate=True),
+    Output("tg-link-button", "disabled", allow_duplicate=True),
     Output("tg-link-button", "color", allow_duplicate=True),
     Output("tg-link-button", "href", allow_duplicate=True),
     Output("n_obs", "value"),
@@ -596,7 +596,7 @@ def toggle_submit(n1, n2, is_open):
         _open = not is_open
     else:
         _open = is_open
-    return _open, False, "secondary", "https://t.me/koshmarkersbot", 10
+    return _open, True, "secondary", "https://t.me/koshmarkersbot", 10
 
 
 # Compile layout
