@@ -434,7 +434,8 @@ def submit_file(contents, filename, n_obs):
 
     with sqlite3.connect("tg/jobs.db") as con:
         cur = con.cursor()
-        cur.execute("INSERT INTO jobs (filename, job_token, n_obs) VALUES (?, ?, ?)", (filename, job_token, int(n_obs)))
+        cur.execute("INSERT INTO jobs (user_filename, filename, job_token, n_obs) VALUES (?, ?, ?, ?)",
+                    (filename, job_token, job_token, int(n_obs)))
         con.commit()
     con.close()
 
