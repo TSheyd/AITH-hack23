@@ -264,15 +264,15 @@ figure_placeholder.update_xaxes(visible=False)
 heatmap_graph = dcc.Graph(id='heatmap_graph', className="m-0", figure=figure_placeholder)
 
 # Wrap diagram in a loading animation
-heatmap_graph = html.Div(
-    id="heatmap-loader-wrapper",
-    style={"height": "100%"},
-    children=[dcc.Loading(
-        id="heatmap-loading",
-        parent_style={"height": "100%"},
-        type="circle",
-        children=[heatmap_graph])
-    ])
+# heatmap_graph = html.Div(
+#     id="heatmap-loader-wrapper",
+#     style={"height": "100%"},
+#     children=[dcc.Loading(
+#         id="heatmap-loading",
+#         parent_style={"height": "100%"},
+#         type="circle",
+#         children=[heatmap_graph])
+#     ])
 
 
 # Violin
