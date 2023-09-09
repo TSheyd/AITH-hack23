@@ -429,7 +429,7 @@ def create_link_to_telegram():
 # Submit files for calculations
 @app.callback(
     Output("alert-file-fmt", "is_open"),
-    Output('upload-file', 'disabled'),
+    Output('upload-file', 'disabled', allow_duplicate=True),
     Output('tg-link-button', 'disabled', allow_duplicate=True),
     Output('tg-link-button', 'color', allow_duplicate=True),
     Output('tg-link-button', 'href', allow_duplicate=True),
@@ -612,7 +612,7 @@ def toggle_info(n1, n2, is_open):
 # Callback for Submit popup button
 @app.callback(
     Output("submit-modal", "is_open"),
-    Output('upload-file', 'disabled'),
+    Output('upload-file', 'disabled', allow_duplicate=True),
     Output("tg-link-button", "disabled", allow_duplicate=True),
     Output("tg-link-button", "color", allow_duplicate=True),
     Output("tg-link-button", "href", allow_duplicate=True),
