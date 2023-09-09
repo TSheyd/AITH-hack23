@@ -1,0 +1,14 @@
+/lib/systemd/system/tg_bot.service
+[Unit]
+Description=TelegramBot
+After=multi-user.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/BioKoshmarkers
+ExecStart=/usr/bin/python3 /root/BioKoshmarkers/tg_bot.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
